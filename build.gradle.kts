@@ -1,5 +1,5 @@
 plugins {
-    id("fabric-loom") version "0.12-SNAPSHOT"
+    id("fabric-loom") version "1.2-SNAPSHOT"
 //    id("io.github.juuxel.loom-quiltflower") version "1.7.1"
     id("maven-publish")
     id("org.quiltmc.quilt-mappings-on-loom") version "4.0.0"
@@ -13,6 +13,9 @@ version = properties["mod_version"].toString()
 group = properties["maven_group"].toString()
 
 repositories {
+ 
+    mavenCentral()
+
     maven {
         name = "ldtteam"
         url = uri("https://ldtteam.jfrog.io/artifactory/parchmentmc-public/")
@@ -41,10 +44,15 @@ repositories {
 
 dependencies {
     minecraft("com.mojang:minecraft:${properties["minecraft_version"].toString()}")
-    mappings(loom.layered {
-        this.addLayer(quiltMappings.mappings("org.quiltmc:quilt-mappings:${properties["minecraft_version"].toString()}+build.${properties["quilt_mappings"].toString()}:v2"))
-        officialMojangMappings()
-    })
+    mappings(
+	
+	loom.layered {
+
+	addLayer(quiltMappings.mappings("org.quiltmc:quilt-mappings:${properties["minecraft_version"].toString()}+build.${properties["quilt_mappings"].toString()}:v2"))			
+
+	}
+
+    )
 
     modImplementation("net.fabricmc:fabric-loader:${properties["loader_version"].toString()}")
     modImplementation("net.fabricmc.fabric-api:fabric-api:${properties["fabric_version"].toString()}")

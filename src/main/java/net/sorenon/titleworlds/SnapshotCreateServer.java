@@ -66,7 +66,7 @@ public class SnapshotCreateServer extends MinecraftServer {
 
     @Override
     protected boolean initServer() {
-        this.setPlayerList(new PlayerList(this, this.registryAccess(), this.playerDataStorage, 1) {
+        this.setPlayerList(new PlayerList(this, this.registries(), this.playerDataStorage, 1) {
             @Override
             public @NotNull CompoundTag getSingleplayerData() {
                 assert Minecraft.getInstance().player != null;
@@ -128,7 +128,7 @@ public class SnapshotCreateServer extends MinecraftServer {
 
         CompoundTag compoundTag = new CompoundTag();
         compoundTag.put("data", idCounts);
-        compoundTag.putInt("DataVersion", SharedConstants.getCurrentVersion().getWorldVersion());
+        compoundTag.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion());
 
         try {
             NbtIo.writeCompressed(compoundTag, new File(dataStorageFolder, "idcounts.dat"));

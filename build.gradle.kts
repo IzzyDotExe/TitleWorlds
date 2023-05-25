@@ -2,7 +2,7 @@ plugins {
     id("fabric-loom") version "1.2-SNAPSHOT"
 //    id("io.github.juuxel.loom-quiltflower") version "1.7.1"
     id("maven-publish")
-    id("org.quiltmc.quilt-mappings-on-loom") version "4.0.0"
+    //id("org.quiltmc.quilt-mappings-on-loom") version "4.2.3"
 }
 
 base {
@@ -33,6 +33,13 @@ repositories {
         url = uri("https://maven.shedaniel.me/")
     }
 
+
+    maven {
+        name = "Quilt"
+        url = uri("https://maven.quiltmc.org/repository/release/")
+    }
+
+
     maven {
         name = "Modrinth"
         url = uri("https://api.modrinth.com/maven")
@@ -44,15 +51,7 @@ repositories {
 
 dependencies {
     minecraft("com.mojang:minecraft:${properties["minecraft_version"].toString()}")
-    mappings(
-	
-	loom.layered {
-
-	addLayer(quiltMappings.mappings("org.quiltmc:quilt-mappings:${properties["minecraft_version"].toString()}+build.${properties["quilt_mappings"].toString()}:v2"))			
-
-	}
-
-    )
+    mappings(loom.officialMojangMappings())
 
     modImplementation("net.fabricmc:fabric-loader:${properties["loader_version"].toString()}")
     modImplementation("net.fabricmc.fabric-api:fabric-api:${properties["fabric_version"].toString()}")

@@ -163,7 +163,7 @@ public class Screenshot3D {
                     0,
                     false,
                     false,
-                    WorldGenSettings.withOverworld(
+                    WorldGenSettings.encode(
                             registryAccess.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY),
                             levelStems,
                             new FlatLevelSource(
@@ -172,8 +172,9 @@ public class Screenshot3D {
                             )
                     )
             );
-            worldStem = ((WorldOpenFlowsAcc) minecraft.createWorldOpenFlows()).invokeLoadWorldStem(
-                    new WorldLoader.PackConfig(packRepository, levelSettings.getDataPackConfig(), false),
+            var worldFlows = minecraft.createWorldOpenFlows();
+            worldStem = ((WorldOpenFlowsAcc)worldFlows).invokeLoadWorldDataBlocking(
+                    new WorldLoader.PackConfig(packRepository, levelSettings.getDataConfiguration(), false, false),
                     (resourceManager, dataPackConfigx) -> {
                         RegistryAccess.Writable writable = RegistryAccess.builtinCopy();
                         DynamicOps<JsonElement> dynamicOps = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
@@ -207,7 +208,8 @@ public class Screenshot3D {
 //                                        wasModded
 //                                        scheduledEvents
                         return Pair.of(levelData, writable.freeze());
-                    }
+                    },
+                    WorldStem::new
             );
         } catch (Exception var21) {
             LOGGER.warn("Failed to load datapacks, can't proceed with server load", var21);

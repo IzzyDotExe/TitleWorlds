@@ -13,11 +13,6 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 public interface WorldOpenFlowsAcc {
 
     @Invoker
-    static PackRepository invokeCreatePackRepository(LevelStorageSource.LevelStorageAccess levelStorageAccess) {
-        throw new UnsupportedOperationException();
-    }
+    <D, R> R invokeLoadWorldDataBlocking(WorldLoader.PackConfig packConfig, WorldLoader.WorldDataSupplier<D> worldDataSupplier, WorldLoader.ResultFactory<D,R> resultFactory) throws Exception;
 
-    @Invoker
-    WorldStem invokeLoadWorldStem(WorldLoader.PackConfig packConfig,
-                                  WorldLoader.WorldDataSupplier<WorldData> worldDataSupplier) throws Exception;
 }

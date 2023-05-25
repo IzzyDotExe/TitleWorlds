@@ -43,6 +43,7 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
 import net.sorenon.titleworlds.Timer;
 import net.sorenon.titleworlds.TitleWorldsMod;
+import net.sorenon.titleworlds.mixin.accessor.ServerPacksSourceAcc;
 import net.sorenon.titleworlds.mixin.accessor.WorldOpenFlowsAcc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -384,7 +385,7 @@ public abstract class MinecraftMixin extends ReentrantBlockableEventLoop<Runnabl
             throw new RuntimeException("Failed to read data");
         }
 
-        var packRepository = WorldOpenFlowsAcc.invokeCreatePackRepository(levelStorageAccess);
+        var packRepository = ServerPacksSourceAcc.invokeCreatePackRepository(levelStorageAccess);
 
         return new Triplet<>(levelStorageAccess, packRepository, this.loadWorldStem(levelStorageAccess, vanillaOnly, packRepository));
     }

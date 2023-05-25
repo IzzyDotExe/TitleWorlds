@@ -79,7 +79,7 @@ public class TitleScreenMixin extends Screen {
     void cancelCubemapRender(PanoramaRenderer instance, float f, float g) {
         if (Minecraft.getInstance().level == null || !Minecraft.getInstance().isRunning()) {
             if (TitleWorldsMod.state.isTitleWorld) {
-                this.renderDirtBackground(0);
+                this.renderDirtBackground(new PoseStack());
             } else {
                 instance.render(f, g);
             }

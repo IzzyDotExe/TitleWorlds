@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.storage.LevelStorageException;
 //import net.sorenon.titleworlds.Screenshot3D;
+import net.sorenon.titleworlds.Screenshot3D;
 import net.sorenon.titleworlds.TitleWorldsMod;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -37,16 +38,16 @@ public class TitleScreenMixin extends Screen {
 
         var level = Minecraft.getInstance().level;
         if (!TitleWorldsMod.state.isTitleWorld && level != null) {
-//            this.addRenderableWidget(new ImageButton(
-//                    this.width / 2 + 104,
-//                    (this.height / 4 + 48) + 60 + (modmenu ? 24 : 0), 20,
-//                    20, 0, 0, 20,
-//                    new ResourceLocation("titleworlds", "/textures/gui/3dscreenshot.png"),
-//                    32, 64,
-//                    (button -> {
-//                        String name = Screenshot3D.take3DScreenshot(level, null);
-//                        Minecraft.getInstance().player.sendSystemMessage(Component.translatable("titleworlds.message.saved_3d_screenshot", name));
-//                    })));
+            this.addRenderableWidget(new ImageButton(
+                    this.width / 2 + 104,
+                    (this.height / 4 + 48) + 60 + (modmenu ? 24 : 0), 20,
+                    20, 0, 0, 20,
+                    new ResourceLocation("titleworlds", "/textures/gui/3dscreenshot.png"),
+                    32, 64,
+                    (button -> {
+                        String name = Screenshot3D.take3DScreenshot(level, null);
+                        Minecraft.getInstance().player.sendSystemMessage(Component.translatable("titleworlds.message.saved_3d_screenshot", name));
+                    })));
         } else if (TitleWorldsMod.CONFIG.enabled) {
             if (TitleWorldsMod.CONFIG.reloadButton) {
                 this.addRenderableWidget(new ImageButton(

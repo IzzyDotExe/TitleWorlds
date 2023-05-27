@@ -2,7 +2,6 @@ package net.sorenon.titleworlds.mixin;
 
 import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
 import com.mojang.datafixers.util.Pair;
-import com.mojang.serialization.DynamicOps;
 import net.minecraft.CrashReport;
 import net.minecraft.CrashReportCategory;
 import net.minecraft.ReportedException;
@@ -19,7 +18,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ProfileKeyPairManager;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.commands.Commands;
-import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
@@ -34,17 +34,18 @@ import net.minecraft.server.WorldStem;
 import net.minecraft.server.level.progress.ProcessorChunkProgressListener;
 import net.minecraft.server.level.progress.StoringChunkProgressListener;
 import net.minecraft.server.packs.repository.PackRepository;
+import net.minecraft.server.packs.repository.ServerPacksSource;
 import net.minecraft.server.players.GameProfileCache;
 import net.minecraft.util.thread.ReentrantBlockableEventLoop;
-import net.minecraft.world.level.DataPackConfig;
+import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
+import net.minecraft.world.level.dimension.LevelStem;
+import net.minecraft.world.level.levelgen.WorldDimensions;
 import net.minecraft.world.level.storage.LevelStorageException;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
 import net.sorenon.titleworlds.Timer;
 import net.sorenon.titleworlds.TitleWorldsMod;
-import net.sorenon.titleworlds.mixin.accessor.ServerPacksSourceAcc;
-import net.sorenon.titleworlds.mixin.accessor.WorldOpenFlowsAcc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -385,32 +386,45 @@ public abstract class MinecraftMixin extends ReentrantBlockableEventLoop<Runnabl
             throw new RuntimeException("Failed to read data");
         }
 
-        var packRepository = ServerPacksSourceAcc.invokeCreatePackRepository(levelStorageAccess);
-
-        return new Triplet<>(levelStorageAccess, packRepository, this.loadWorldStem(levelStorageAccess, vanillaOnly, packRepository));
+        var packRepository = ServerPacksSource.createPackRepository(levelStorageAccess);
+        CompletableFuture<WorldStem> worldstem;
+        try {
+            worldstem = this.loadWorldStem(levelStorageAccess, vanillaOnly, packRepository);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return new Triplet<>(levelStorageAccess, packRepository, worldstem);
     }
 
     private CompletableFuture<WorldStem> loadWorldStem(LevelStorageSource.LevelStorageAccess levelStorageAccess,
                                                        boolean bl,
-                                                       PackRepository packRepository) {
-        DataPackConfig dataPackConfig = levelStorageAccess.getDataPacks();
-        if (dataPackConfig == null) {
-            throw new RuntimeException("Failed to load data pack config");
-        } else {
-            WorldLoader.PackConfig packConfig = new WorldLoader.PackConfig(packRepository, dataPackConfig, bl);
-            WorldLoader.InitConfig initConfig = new WorldLoader.InitConfig(packConfig, Commands.CommandSelection.INTEGRATED, 2);
+                                                       PackRepository packRepository) throws ExecutionException, InterruptedException {
+        WorldLoader.PackConfig packConfig = getPackConfigFromLevelData(levelStorageAccess, bl, packRepository);
 
-            return WorldStem.load(initConfig, (resourceManager, dataPackConfigx) -> {
-                RegistryAccess.Writable writable = RegistryAccess.builtinCopy();
-                DynamicOps<Tag> dynamicOps = RegistryOps.createAndLoad(NbtOps.INSTANCE, writable, resourceManager);
-                WorldData worldData = levelStorageAccess.getDataTag(dynamicOps, dataPackConfigx, writable.allElementsLifecycle());
-                if (worldData == null) {
-                    throw new RuntimeException("Failed to load world");
-                } else {
-                    return Pair.of(worldData, writable.freeze());
-                }
-            }, Util.backgroundExecutor(), this);
+        return loadWorldNonDataBlocking(packConfig, dataLoadContext -> {
+            RegistryOps<Tag> dynamicOps = RegistryOps.create(NbtOps.INSTANCE, dataLoadContext.datapackWorldgen());
+            Registry<LevelStem> registry = dataLoadContext.datapackDimensions().registryOrThrow(Registries.LEVEL_STEM);
+            Pair<WorldData, WorldDimensions.Complete> pair = levelStorageAccess.getDataTag(dynamicOps, dataLoadContext.dataConfiguration(), registry, dataLoadContext.datapackWorldgen().allRegistriesLifecycle());
+            if (pair == null) {
+                throw new IllegalStateException("Failed to load world");
+            }
+            return new WorldLoader.DataLoadOutput<WorldData>(pair.getFirst(), pair.getSecond().dimensionsRegistryAccess());
+        }, WorldStem::new);
+    }
+
+    private <D, R> CompletableFuture<R> loadWorldNonDataBlocking(WorldLoader.PackConfig packConfig, WorldLoader.WorldDataSupplier<D> worldDataSupplier, WorldLoader.ResultFactory<D, R> resultFactory) throws ExecutionException, InterruptedException {
+        WorldLoader.InitConfig initConfig = new WorldLoader.InitConfig(packConfig, Commands.CommandSelection.INTEGRATED, 2);
+        return WorldLoader.load(initConfig, worldDataSupplier, resultFactory, Util.backgroundExecutor(), this);
+    }
+
+    private WorldLoader.PackConfig getPackConfigFromLevelData(LevelStorageSource.LevelStorageAccess levelStorageAccess, boolean bl, PackRepository packrepo) {
+        WorldDataConfiguration dataconfig = levelStorageAccess.getDataConfiguration();
+        if (dataconfig == null) {
+            throw new IllegalStateException("Failed to load data pack config");
         }
+        return new WorldLoader.PackConfig(packrepo, dataconfig, bl, false);
     }
 
     @Unique
@@ -424,7 +438,7 @@ public abstract class MinecraftMixin extends ReentrantBlockableEventLoop<Runnabl
         this.progressListener.set(null);
 
         try {
-            levelStorageAccess.saveDataTag(worldStem.registryAccess(), worldStem.worldData());
+            levelStorageAccess.saveDataTag(worldStem.registries().compositeAccess(), worldStem.worldData());
             Services services = Services.create(this.authenticationService, this.gameDirectory);
             services.profileCache().setExecutor(this);
             SkullBlockEntity.setup(services, this);
@@ -454,7 +468,11 @@ public abstract class MinecraftMixin extends ReentrantBlockableEventLoop<Runnabl
                         pendingConnection,
                         (Minecraft) (Object) this,
                         null,
+                        this.screen,
+                        false,
+                        null,
                         component -> {
+
                         }
                 )
         );
@@ -463,6 +481,6 @@ public abstract class MinecraftMixin extends ReentrantBlockableEventLoop<Runnabl
 
         //this.pendingConnection must be set before sending ServerboundHelloPacket or a rare crash can occur
         this.pendingConnection = pendingConnection;
-        pendingConnection.send(new ServerboundHelloPacket(this.getUser().getName(), this.profileKeyPairManager.profilePublicKeyData(), Optional.ofNullable(this.getUser().getProfileId())));
+        pendingConnection.send(new ServerboundHelloPacket(this.getUser().getName(), Optional.ofNullable(this.getUser().getProfileId())));
     }
 }

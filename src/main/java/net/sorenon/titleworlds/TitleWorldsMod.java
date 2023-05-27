@@ -57,19 +57,19 @@ public class TitleWorldsMod implements ClientModInitializer {
             }
         });
 
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(literal("titleworlds:3Dscreenshot")
-                    .executes(ctx -> {
-                        String name = Screenshot3D.take3DScreenshot(ctx.getSource().getWorld(), null);
-                        ctx.getSource().sendFeedback(Component.translatable("titleworlds.message.saved_3d_screenshot", name));
-                        return 1;
-                    }).then(argument("name", StringArgumentType.string())
-                            .executes(ctx -> {
-                                String name = Screenshot3D.take3DScreenshot(ctx.getSource().getWorld(), StringArgumentType.getString(ctx, "name"));
-                                ctx.getSource().sendFeedback(Component.translatable("titleworlds.message.saved_3d_screenshot", name));
-                                return 1;
-                            })));
-        });
+//        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+//            dispatcher.register(literal("titleworlds:3Dscreenshot")
+//                    .executes(ctx -> {
+//                        String name = Screenshot3D.take3DScreenshot(ctx.getSource().getWorld(), null);
+//                        ctx.getSource().sendFeedback(Component.translatable("titleworlds.message.saved_3d_screenshot", name));
+//                        return 1;
+//                    }).then(argument("name", StringArgumentType.string())
+//                            .executes(ctx -> {
+//                                String name = Screenshot3D.take3DScreenshot(ctx.getSource().getWorld(), StringArgumentType.getString(ctx, "name"));
+//                                ctx.getSource().sendFeedback(Component.translatable("titleworlds.message.saved_3d_screenshot", name));
+//                                return 1;
+//                            })));
+//        });
     }
 
     public static class State {

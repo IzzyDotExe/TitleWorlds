@@ -14,6 +14,7 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtOps;
@@ -23,14 +24,18 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.WorldLoader;
 import net.minecraft.server.WorldStem;
+import net.minecraft.server.dedicated.DedicatedServerProperties;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.FolderRepositorySource;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.repository.ServerPacksSource;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.level.DataPackConfig;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
+import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.FlatLevelSource;
 import net.minecraft.world.level.levelgen.WorldDimensions;
@@ -50,8 +55,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static net.sorenon.titleworlds.TitleWorldsMod.LEVEL_SOURCE;
 import static net.sorenon.titleworlds.TitleWorldsMod.saveOnExitSource;
@@ -123,12 +131,10 @@ public class Screenshot3D {
             minecraft.setScreen(null);
             return;
         }
-
         PackRepository packRepository = new PackRepository(
                 new ServerPacksSource(),
                 new FolderRepositorySource(levelStorageAccess.getLevelPath(LevelResource.DATAPACK_DIR), PackType.SERVER_DATA, PackSource.WORLD)
         );
-        var features = levelStorageAccess.getDataConfiguration().enabledFeatures();
         WorldStem worldStem;
         try {
             ClientLevel.ClientLevelData originLevelData = originLevel.getLevelData();
@@ -137,7 +143,7 @@ public class Screenshot3D {
                     worldName,
                     GameType.CREATIVE,
                     false,
-                    originLevelData.getDifficulty(),
+                    Difficulty.PEACEFUL,
                     true,
                     originLevelData.getGameRules(),
                     levelStorageAccess.getDataConfiguration()
@@ -169,8 +175,7 @@ public class Screenshot3D {
             );
             var worldFlows = minecraft.createWorldOpenFlows();
             WorldGenSettings finalWorldGenSettings = worldGenSettings;
-            worldStem = ((WorldOpenFlowsAcc)worldFlows).invokeLoadWorldDataBlocking(
-                    new WorldLoader.PackConfig(packRepository, levelSettings.getDataConfiguration(), false, false),
+            worldStem = Screenshot3D.loadWorldNonDataBlocking(minecraft, levelStorageAccess, packRepository,
 //                    dataLoadContext -> {
 //                        RegistryAccess writable = RegistryAccess.Frozen.EMPTY;
 //                        DynamicOps<JsonElement> dynamicOps = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
@@ -207,7 +212,7 @@ public class Screenshot3D {
 //                        return new WorldLoader.DataLoadOutput<PrimaryLevelData>(levelData, dataResult )
 //                    },
                     dataLoadContext -> {
-                        RegistryAccess writable = RegistryAccess.Frozen.EMPTY;
+                        RegistryAccess writable = RegistryAccess.EMPTY;
                         DynamicOps<JsonElement> dynamicOps = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
                         DynamicOps<JsonElement> dynamicOps2 = RegistryOps.create(JsonOps.INSTANCE, writable);
                         DataResult<WorldGenSettings> dataResult = WorldGenSettings.CODEC
@@ -247,7 +252,7 @@ public class Screenshot3D {
                         return new WorldLoader.DataLoadOutput<WorldData>(pair.getFirst(), pair.getSecond().dimensionsRegistryAccess());
                     },
                     WorldStem::new
-            );
+            ).get();
         } catch (Exception var21) {
             LOGGER.warn("Failed to load datapacks, can't proceed with server load", var21);
 
@@ -276,6 +281,27 @@ public class Screenshot3D {
             minecraftSessionService.setDetail("Level Name", exception.getLevelName());
             throw new ReportedException(yggdrasilAuthenticationService);
         }
+    }
+
+    public static WorldLoader.InitConfig loadOrCreateConfig(LevelStorageSource.LevelStorageAccess levelStorageAccess, boolean bl, PackRepository packRepository) {
+        WorldDataConfiguration worldDataConfiguration2;
+        boolean bl2;
+        WorldDataConfiguration worldDataConfiguration = levelStorageAccess.getDataConfiguration();
+        if (worldDataConfiguration != null) {
+            bl2 = false;
+            worldDataConfiguration2 = worldDataConfiguration;
+        } else {
+            bl2 = true;
+            var dataConfig = DataPackConfig.DEFAULT;
+            worldDataConfiguration2 = new WorldDataConfiguration(dataConfig, FeatureFlags.DEFAULT_FLAGS);
+        }
+        WorldLoader.PackConfig packConfig = new WorldLoader.PackConfig(packRepository, worldDataConfiguration2, bl, bl2);
+        return new WorldLoader.InitConfig(packConfig, Commands.CommandSelection.INTEGRATED, 2);
+    }
+
+    public static <D, R> CompletableFuture<R> loadWorldNonDataBlocking(Minecraft mc, LevelStorageSource.LevelStorageAccess levelStorageAccess, PackRepository packRepository, WorldLoader.WorldDataSupplier<D> worldDataSupplier, WorldLoader.ResultFactory<D, R> resultFactory) throws ExecutionException, InterruptedException {
+        WorldLoader.InitConfig initConfig = loadOrCreateConfig(levelStorageAccess, false, packRepository);
+        return WorldLoader.load(initConfig, worldDataSupplier, resultFactory, Util.backgroundExecutor(), mc);
     }
 
 }

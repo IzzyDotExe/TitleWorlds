@@ -414,7 +414,7 @@ public abstract class MinecraftMixin extends ReentrantBlockableEventLoop<Runnabl
         }, WorldStem::new);
     }
 
-    private <D, R> CompletableFuture<R> loadWorldNonDataBlocking(WorldLoader.PackConfig packConfig, WorldLoader.WorldDataSupplier<D> worldDataSupplier, WorldLoader.ResultFactory<D, R> resultFactory) throws ExecutionException, InterruptedException {
+    public <D, R> CompletableFuture<R> loadWorldNonDataBlocking(WorldLoader.PackConfig packConfig, WorldLoader.WorldDataSupplier<D> worldDataSupplier, WorldLoader.ResultFactory<D, R> resultFactory) throws ExecutionException, InterruptedException {
         WorldLoader.InitConfig initConfig = new WorldLoader.InitConfig(packConfig, Commands.CommandSelection.INTEGRATED, 2);
         return WorldLoader.load(initConfig, worldDataSupplier, resultFactory, Util.backgroundExecutor(), this);
     }
